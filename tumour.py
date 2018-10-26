@@ -1,77 +1,123 @@
 import numpy as np
 import numpy.linalg as lin
-from scipy.sparse import diags
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# from scipy.sparse import diags
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
+import csv
 
-n = 2
-m = 2
 
-rhog = 0.005
-rhow = 0.01
+m = 6
+n = 6
+
+rho_g = 0.005
+rho_w = 0.01
 D = 0.01
-chat = 4e4
+c_hat = 4e4
 
-r_upper = 10
+r_1 = 2
+r_2 = 4
+r_3 = 6
+r_4 = 8
+r_5 = 10
+
+th_1 = np.pi / 8
+th_2 = np.pi / 8 * 3
+th_3 = np.pi / 2
 
 M = m * 5
 N = n * 4
 
-dr = r_upper / M
-df = np.pi/2 / N
-dt = 0.001
+dr = r_5 / M
+df = th_3 / N
+dt = 1
 
-S = np.zeros((M*N,N*M))
+# functions to calculate radii west, center and east of a cell based on j
+def r_w (j):
+    return dr * j
+def r_c (j):
+    return dr * (j + 0.5)
+def r_e (j):
+    return dr * (j + 1)
 
+# function to determine rho using r and theta
+def rho_gw (r, th):
+    if r < r_1:
+        return rho_g
+    elif (r_2 <= r < r_3) and (th_1 <= th < th_2):
+        return rho_g
+    elif (r_4 <= r) and ((th < th_1) or (th >= th_2)):
+        return rho_g
+    else:
+        return rho_w
+
+# the whole stiffness matrix divided by r, dr, dtheta or mass matrix M inversed and multiplied with stiffness matrix S
+MinvS = np.zeros((M * N, N * M))
+
+# the whole rho vector for all the cells with either rho_white or rho_grey
+rho = np.zeros(M * N)
+
+# the initial value of c for t = 0
+c0 = np.zeros(M * N)
+
+# i walking through the cells in the theta direction
 for i in range(N):
+    # j walking through the cells in the r direction
+    # due to horizontal ordering i * M + j is the right index for cell(i, j)
     for j in range(M):
-        S[i*M+j,(i*M+j+M)%(N*M)] = dr/(df*dr*(j+0.5))
-        S[i*M+j,(i*M+j-M)%(N*M)] = dr/(df*dr*(j+0.5))
+        # northern neighbour value for MinvS
+        MinvS[i * M + j, (i * M + j + M) % (N * M)] = 1 / (df * r_c(j)) ** 2
+
+        # southern neighbour value for MinvS
+        MinvS[i * M + j, (i * M + j - M) % (N * M)] = 1 / (df * r_c(j)) ** 2
+        
+        # on the left boundary or in the middle of the circle
         if j == 0:
-            S[i*M+j,i*M+j] = -(2*dr/(df*dr*(j+0.5))+(j+1)*df)/(dr*df*dr*(j+0.5))
-            S[i*M+j,i*M+1] = (j+1)/(dr*dr*(j+0.5))
-        elif j == M-1:
-            S[i*M+j,i*M+j] = -(2*dr/(df*dr*(j+0.5))+j*df)/(dr*df*dr*(j+0.5))
-            S[i*M+j,i*M+j-1] = (j)/(dr*dr*(j+0.5))
+            # the current cell value for MinvS
+            MinvS[i * M + j, i * M + j] =  -(2 / (r_c(j) * r_c(j) * df * df) + r_e(j) / (r_c(j) * dr * dr))
+
+            # the eastern neighbour value for MinvS
+            MinvS[i * M + j, i * M + 1] = r_e(j) / (r_c(j) * dr * dr)
+
+        # on the right boundary or on the boundary of the circle
+        elif j == M - 1:
+            # the current cell value for MinvS
+            MinvS[i * M + j, i * M + j] =  -(2 / (r_c(j) * r_c(j) * df * df) + r_w(j) / (r_c(j) * dr * dr))
+
+            # the western neighbour value for MinvS
+            MinvS[i * M + j, i * M + j - 1] = r_w(j) / (r_c(j) * dr * dr)
+
+        # in a cell in the middle
         else:
-            S[i*M+j,i*M+j] = -(2*dr/(df*dr*(j+0.5))+(2*j+1)*df)/(dr*df*dr*(j+0.5))
-            S[i*M+j,i*M+j+1] = (j+1)/(dr*dr*(j+0.5))
-            S[i*M+j,i*M+j-1] = (j)/(dr*dr*(j+0.5))
+            # the current cell value for MinvS
+            MinvS[i * M + j, i * M + j] =  -(2 / (r_c(j) * r_c(j) * df * df) + (r_e(j) + r_w(j)) / (r_c(j) * dr * dr))
 
-vec = np.ones(M*N)
+            # the eastern neighbour value for MinvS
+            MinvS[i * M + j, i * M + j + 1] = r_e(j) / (r_c(j) * dr * dr)
 
-for i  in range(N):
-    for j in range(M):
-        if j < n:
-            vec[i*M+j] = rhog
-        elif (2*n <= j < 3*n) and (m <= i < 3*m):
-            vec[i*M+j] = rhog
-        elif (4*n <= j) and ((i < m) or (i >= 3*m)):
-            vec[i*M+j] = rhog
-        else:
-            vec[i*M+j] = rhow
+            # the western neighbour value for MinvS
+            MinvS[i * M + j, i * M + j - 1] = r_w(j) / (r_c(j) * dr * dr)
 
-A = (S*D+np.diag(vec))
+        # set the rho vector to rho_grey in all four grey areas and white in the rest
+        rho[i * M + j] = rho_gw((j) * dr, (i) * df)
 
-vec = np.ones(M*N)
+        # calculating the c value on t = 0
+        c0[i * M + j] = c_hat * np.exp(-(r_c(j) * r_c(j)))
 
-for i  in range(N):
-    for j in range(M):
-        vec[i*M+j] = chat*np.exp(-1*((j+0.5)*dr)**2)
 
-eig = lin.eigvals(A)
-      
-c = vec
+# summing the MinvS matrix with the diagonal matrix of all rhos to have one matrix A for the equation c'(t) = A c(t)
+A = (MinvS * D + np.diag(rho))
+print("Calculating the matrix is done!")
+
+c = c0
 deadcells = []
-print("matrix done!")
-ALIVE = True
+alive = True
 cnt = 0
-while ALIVE:    
-    c += lin.solve(A,c)*dt    
+while alive:    
+    c += lin.solve(A, c) * dt    
     deadcells.append(sum(i > chat for i in c))
     print(max(c))    
-    if sum(i > chat for i in c)/(M*N) > 0.25:
-        ALIVE = False
-    cnt+=1
+    if sum(i > chat for i in c) / (M * N) > 0.25:
+        alive = False
+    cnt += 1
 
-t = cnt*dt
+t = cnt * dt
