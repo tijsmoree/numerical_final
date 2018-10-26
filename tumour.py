@@ -50,6 +50,10 @@ def rho_gw (r, th):
     else:
         return rho_w
 
+# calculate the area using the location by using j
+def area (j):
+    return 0.5 * df * (r_e(j) * r_e(j) - r_w(j) * r_w(j))
+
 # the whole stiffness matrix divided by r, dr, dtheta or mass matrix M inversed and multiplied with stiffness matrix S
 MinvS = np.zeros((M * N, N * M))
 
@@ -108,16 +112,27 @@ for i in range(N):
 A = (MinvS * D + np.diag(rho))
 print("Calculating the matrix is done!")
 
+
 c = c0
 deadcells = []
 alive = True
 cnt = 0
-while alive:    
-    c += lin.solve(A, c) * dt    
-    deadcells.append(sum(i > chat for i in c))
-    print(max(c))    
-    if sum(i > chat for i in c) / (M * N) > 0.25:
+totalArea = 0.25 * np.pi * r_5 * r_5
+
+while alive:
+    areaDead = 0
+    c += lin.solve(A, c) * dt
+
+    for i in range(N):
+        for j in range(M):
+            if c[i * M + j] > c_hat:
+                areaDead += area(j)
+
+    if areaDead > 0.25 * totalArea:
         alive = False
+    
     cnt += 1
 
 t = cnt * dt
+
+print(t)
