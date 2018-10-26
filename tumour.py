@@ -3,7 +3,6 @@ import numpy.linalg as lin
 # from scipy.sparse import diags
 # import matplotlib.pyplot as plt
 # from mpl_toolkits.mplot3d import Axes3D
-import csv
 
 
 m = 6
@@ -118,10 +117,12 @@ deadcells = []
 alive = True
 cnt = 0
 totalArea = 0.25 * np.pi * r_5 * r_5
+B = np.eye(M * N, M * N) - dt * A
+dts = dt * np.ones(M * N)
 
 while alive:
     areaDead = 0
-    c += lin.solve(A, c) * dt
+    c = lin.solve(B, c + dts)
 
     for i in range(N):
         for j in range(M):
