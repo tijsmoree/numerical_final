@@ -18,9 +18,9 @@ r_4 = 8
 r_5 = 10
 
 # set angles
-th_1 = np.pi/8
-th_2 = np.pi/8*3
-th_3 = np.pi/2
+f_1 = np.pi/8
+f_2 = np.pi/8*3
+f_3 = np.pi/2
 
 # calculate amount of cells to make sure each cell has only one rho
 M = m*5
@@ -28,7 +28,7 @@ N = n*4
 
 # calculate the cell sizes
 dr = r_5/M
-df = th_3/N
+df = f_3/N
 dt = 1
 
 # functions to calculate radii west, center and east of a cell based on j
@@ -40,12 +40,12 @@ def r_e (j):
   return dr*(j+1)
 
 # function to determine rho using r and theta
-def rho_gw (r, th):
+def rho_gw (r, f):
   if r < r_1:
     return rho_g
-  elif (r_2 <= r < r_3) and (th_1 <= th < th_2):
+  elif (r_2 <= r < r_3) and (f_1 <= f < f_2):
     return rho_g
-  elif (r_4 <= r) and ((th < th_1) or (th >= th_2)):
+  elif (r_4 <= r) and ((f < f_1) or (f >= f_2)):
     return rho_g
   else:
     return rho_w
