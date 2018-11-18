@@ -1,8 +1,8 @@
 import numpy as np
 import numpy.linalg as lin
 
-m = 6
-n = 6
+m = 2
+n = 2
 
 # set constants
 rho_g = 0.005
@@ -75,16 +75,8 @@ for i in range(N):
     # southern neighbour value for MinvS
     MinvS[i*M+j, (i*M+j-M) % (N*M)] = 1/(df*r_c(j)) ** 2
     
-    # on the left boundary or in the middle of the circle
-    if j == 0:
-      # the current cell value for MinvS
-      MinvS[i*M+j, i*M+j] = -(2/(r_c(j)*r_c(j)*df*df)+r_e(j)/(r_c(j)*dr*dr))
-
-      # the eastern neighbour value for MinvS
-      MinvS[i*M+j, i*M+1] = r_e(j)/(r_c(j)*dr*dr)
-
-    # on the right boundary or on the boundary of the circle
-    elif j == M-1:
+    # on the east boundary or on the boundary of the circle
+    if j == M-1:
       # the current cell value for MinvS
       MinvS[i*M+j, i*M+j] = -(2/(r_c(j)*r_c(j)*df*df)+r_w(j)/(r_c(j)*dr*dr))
 
