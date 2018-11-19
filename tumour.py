@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.linalg as lin
 
 m = 2
 n = 2
@@ -111,12 +110,11 @@ alive = True
 cnt = 0
 totalArea = 0.25*np.pi*r_5*r_5
 B = np.eye(M*N, M*N)-dt*A
-dts = dt*np.ones(M*N)
 
 # solve the equation in time until the patient is dead with initial values c0
 while alive:
   areaDead = 0
-  c = lin.solve(B, c+dts)
+  c = np.linalg.solve(B, c)
 
   # calculating the dead area
   for i in range(N):
